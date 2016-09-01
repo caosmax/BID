@@ -1,0 +1,808 @@
+#Programa para calcular los impactos del cambio climático sobre los cultivos analizados en los distintos GCMs (tasas de crecimiento anualizadas)------
+#Por: Jesús Rodríguez
+
+#Directorio de trabajo 
+#Computador personal
+setwd("D:/ToBackup/Jesús Rodríguez/BID/Resultados_agregados")
+#dapadfs
+#setwd("Z:/BID_Evaluacion_Economica/Resultados_agregados")
+
+#Lista de tipos de sistemas
+sist<-c("riego","secano")
+sist.en<-c("air","arf")
+#s=1 # riego
+#s=2 # secano
+
+#Cargar lista de modelos
+#Computador personal
+models<-read.csv(file="D:/ToBackup/Jesús Rodríguez/BID/ModelosGCM.csv",header=T,stringsAsFactors = F)
+#dapadfs
+#models<-read.csv(file="Z:/BID_Evaluacion_Economica/ModelosGCM.csv",header=T,stringsAsFactors = F)
+models = rbind(models,'WFD')
+
+#Lista de cultivos
+crops<-c("arroz","maiz","soya","frijol","trigo")
+crops.en<-c("rice","maiz","soyb","bean","whea")
+crops.enj<-c("jrice","jmaiz","jsoyb","jbean","jwhea")
+
+for (s in 1:length(sist)) {
+    for (c in 1:length(crops)) {
+        
+        #Definir dimensiones de mi matriz vacia (dado que todos los modelos para cada cultivo y sistema de riego tienen el 
+        # mismo numero de fpus fijare el numerop 1 para obtener esta informacion) y el numero de col lo obtndre de la dimension de models
+        
+        z<-read.csv(paste(crops[c],'_',sist[s],'_',models[1,],'_','FPU.csv',sep=''),header=T,stringsAsFactors = F)
+        #z<-z[complete.cases((z[,"num_pixels"]) == TRUE),]
+        
+        y<-matrix(nrow=dim(z)[1], ncol=dim(models)[1])
+        
+        #Cargar rendimientos agregados a nivel de fpu futuros (gcms) y pasados (wfd) y calcular el cambio en los promedio de ambos
+        # periodos
+        
+        for (j in 1:dim(models)[1]){
+            md<-read.csv(paste(crops[c],'_',sist[s],'_',models[j,],'_','FPU.csv',sep=''),header=T,stringsAsFactors = F)
+            #md<-md[complete.cases((md[,"num_pixels"]) == TRUE),]
+            zz<-matrix(nrow=dim(md)[1],ncol=1)
+            zz<-apply(md[,paste('Rend_fpu_20',22:45,sep='')],1,function(x){mean(x,na.rm = T)})
+            y[,j]<-zz
+            rownames(y)<-md$X
+            colnames(y)<-models$Models
+        }
+        
+        t<-1987:2034
+        
+        tc_an<-matrix(nrow=dim(y)[1],ncol=dim(y)[2])
+        tc_an2<-matrix(nrow=dim(y)[1],ncol=dim(y)[2]+2)
+        colnames(tc_an)<-c(models$Models)
+        rownames(tc_an)<-rownames(y)
+        
+        for (i in 1 : dim(y)[2]) {
+            tc_an[,i]<-(log(y[1:dim(y)[1],i] / y[1:dim(y)[1],dim(models)[1]]) /length(t))
+            is.na(tc_an) <- sapply(tc_an, is.infinite)
+            tc_an2<-data.frame(crop=rep(crops.enj[c],dim(y)[1]),treat=rep(sist.en[s],dim(y)[1]),tc_an)
+            write.csv(tc_an2,paste('D:/ToBackup/Jesús Rodríguez/BID/Resultados_agregados/','tc_an_',crops[c],'_',sist[s],'_','_FPU.csv',sep=''),row.names=T)
+        }
+        
+        
+    }
+    
+    print(s)
+    
+}
+
+
+rm(list=ls())
+
+#Programa para organizar los rendimientos agregados a nivel de FPU en un formato apropiado para el modelo IMPACT (long format)-----
+#Por: Jesús Rodríguez
+
+# Tasa anualizada de los promedios entre los periodos pasado y futuro
+#Computador personal
+setwd("D:/ToBackup/Jesús Rodríguez/BID/Resultados_agregados")
+#Dapadfs
+#setwd('Z:/BID_Evaluacion_Economica/Resultados_agregados')
+
+# Lista de cultivos y sistemas
+cultivos<-c('arroz','frijol','maiz','soya','trigo')
+cultivos.en<-c('rice','bean','maiz','soyb','whea')
+treat<-c('riego','secano')
+treat.en<-c('irrigated','rainfed')
+
+#Nombre de los marco de datos
+nom_df<-c(paste(cultivos.en,'_',treat.en[1],sep=''),paste(cultivos.en,'_',treat.en[2],sep=''))
+
+#Nombre de los archivos. Reviza que sean exacmente igual a los nombres de los archivos en el directorio de trabajo.
+files_nam<-c(paste('tc_an_',cultivos,'_',treat[1],'__FPU.csv',sep=''),paste('tc_an_',cultivos,'_',treat[2],'__FPU.csv',sep=''))
+
+for (i in 1: length(nom_df)) {
+    eval(parse(text=paste(nom_df[i],'<-read.csv(file=\'',files_nam[i],'\',header=T)',sep='')))
+    #eval(parse(text=paste(nom_dfj[i],'<-read.csv(file=\'',files_namj[i],'\',header=T)',sep='')))
+    eval(parse(text=paste(nom_df[i],'<-data.frame(',nom_df[i],',','treat=rep(',"treat.en[t]",',','dim(',nom_df[i],')','[1]',')',')',sep='')))
+    print(i)
+    
+}
+
+tc_an_all<-rbind(bean_irrigated,bean_rainfed,rice_irrigated,rice_rainfed,maiz_irrigated,
+                 maiz_rainfed,soyb_rainfed,soyb_irrigated,whea_irrigated,whea_rainfed)
+
+
+#Los NAs los reemplazo por ceros
+tc_an_all[is.na(tc_an_all)==TRUE]=0
+
+#dado que IMPACT tiene dificultades para econtrar una solución al sistema cuando hay tasas de crecimiento muy grandes, voy a ponerle un tope a las tasas
+# que voy a incorporar en IMPACT igual al valor del cuantil 99 de toda la muestra.
+models <- read.csv("D:/ToBackup/Jesús Rodríguez/BID/ModelosGCM.csv",header=T,stringsAsFactors=F)
+q<-quantile(tc_an_all[,t(models)],prob=0.996,na.rm=TRUE)
+
+for (i in 4: dim(tc_an_all)[2]) {
+    tc_an_all[which(tc_an_all[,i]>q),i]=q
+}
+
+mdlong <- reshape(tc_an_all, varying = list(names(tc_an_all)[4:dim(tc_an_all)[2]]), v.names="val", direction = "long",
+                  idvar=c("X","crop","treat"),timevar = "gcm",times =names(tc_an_all)[4:dim(tc_an_all)[2]] 
+)
+
+names(mdlong)<-c("fpu","j","lnd","gcm","val")
+write.csv(mdlong,file='D:/ToBackup/Jesús Rodríguez/BID/Scripts/CCPROCESSING/InputFiles/LongFormat.csv',row.names=F)
+write.csv(tc_an_all,file='D:/ToBackup/Jesús Rodríguez/BID/Resultados_agregados/tc_an_all.CSV',row.names=F)
+
+
+
+
+
+
+
+#Graficos
+#nombres de los cultivos
+#Computador personal
+models <- read.csv("D:/ToBackup/Jesús Rodríguez/BID/ModelosGCM.csv",header=T,stringsAsFactors=F)
+models = rbind(models,'WFD')
+
+color<-c("brown","slateblue2","purple4","pink","black")
+
+tiff(filename = paste("D:/ToBackup/Jesús Rodríguez/BID/Graficos/Distribution of annual rate of growth of all crops yields.tiff"),width = 9, height = 9, units = 'in', res = 300)
+
+par(mfrow=c(2,3))
+for (c in 1:length(levels(tc_an_all$crop))) {
+    
+    data<-subset(tc_an_all,tc_an_all[,"crop"]==levels(tc_an_all$crop)[c])
+    data.m<-as.matrix(data)
+    hist(as.matrix(data[,models[1:10,]]),main=paste("Distribution of annual rate of growth of", cultivos.en[c],"yields"),
+         lwd=1.5,col=color[c],xlab="Annual rate of growth (decimal)",breaks=50,cex.main=0.8,cex.lab=0.8,ylim = c(0,180))   
+    
+}
+par(mfrow=c(1,1))
+dev.off()
+
+
+tiff(filename = paste("D:/ToBackup/Jesús Rodríguez/BID/Graficos/Distribution of annual rate of growth of rainfed crops yields.tiff"),width = 9, height = 9, units = 'in', res = 300)
+
+par(mfrow=c(2,3))
+for (c in 1:length(levels(tc_an_all$crop))) {
+    datar<-subset(tc_an_all,tc_an_all[,"treat"]=="arf")
+    datar<-subset(datar,datar[,"crop"]==levels(tc_an_all$crop)[c])
+    datar.m<-as.matrix(datar)
+    hist(as.matrix(datar[,models[1:10,]]),main=paste("Distribution of annual rate of growth of", cultivos.en[c],"yields"),
+         lwd=1.5,col=color[c],xlab="Annual rate of growth (%)",breaks=50,cex.main=0.8,cex.lab=0.8,ylim=c(0,120))   
+    
+}
+par(mfrow=c(1,1))
+dev.off()
+
+
+tiff(filename = paste("D:/ToBackup/Jesús Rodríguez/BID/Graficos/Distribution of annual rate of growth of irrigated crops yields.tiff"),width = 9, height = 9, units = 'in', res = 300)
+
+par(mfrow=c(2,3))
+for (c in 1:length(levels(tc_an_all$crop))) {
+    datar<-subset(tc_an_all,tc_an_all[,"treat"]=="air")
+    datar<-subset(datar,datar[,"crop"]==levels(tc_an_all$crop)[c])
+    datar.m<-as.matrix(datar)
+    hist(as.matrix(datar[,models[1:10,]]),main=paste("Distribution of annual rate of growth of", cultivos.en[c],"yields"),
+         lwd=1.5,col=color[c],xlab="Annual rate of growth (%)",breaks=50,cex.main=0.8,cex.lab=0.8,ylim=c(0,120))   
+    
+}
+par(mfrow=c(1,1))
+dev.off()
+
+# Programa para generar graficos proyecto BID-----
+#Por: Jesús Rodríguez
+library(reshape)
+library(ggplot2)
+library(plyr)
+library(grid)
+library(gridExtra)
+
+
+#Definir directorio de trabajo
+setwd("C:/Users/JJRODRIGUEZ/Documents/IMPACT3-Model-ver3.2/OutputFiles/Aggregation/")
+#Dirreción graficos
+grd<-"C:/Users/JJRODRIGUEZ/Documents/BID/Graficos/"
+
+#Cargar marco de datos principal
+md<-read.csv("Resultados_StCty_15_03_16.csv",header=T)
+
+#Hacer un subconjunto que sólo contenga las variables de mi interés
+mdsub<-subset(md,md$impactparameter=="QSXAgg -- Total Production" | 
+                  md$impactparameter=="TAreaXAgg -- Total Area" |
+                  md$impactparameter== "QNXAgg -- Net Trade" | 
+                  md$impactparameter== "QDXAgg -- Total Demand")
+
+mdsub$impactparameter<-revalue(mdsub$impactparameter, c("QDXAgg -- Total Demand"="Total Demand",
+                                                        "QNXAgg -- Net Trade"="Net Trade",
+                                                        "QSXAgg -- Total Production"="Total Production",
+                                                        "TAreaXAgg -- Total Area"="Total Area"))
+
+#Hacer un subconjunto que sólo contenga los cinco cultivos analizados
+mdsubcrop<-subset(mdsub,mdsub$commodity=="jbean"| mdsub$commodity=="jmaiz" |
+                      mdsub$commodity=="jrice" | mdsub$commodity=="jsoyb" |
+                      mdsub$commodity=="jwhea" | mdsub$commodity=="cbean" |
+                      mdsub$commodity=="cmaiz" | mdsub$commodity=="crice" |
+                      mdsub$commodity=="csoyb" | mdsub$commodity=="cwhea")
+
+#Hacer un subconjunto de md que sólo contenga los paises de LAC
+lac_reg<-levels(mdsubcrop$region)[68:92]
+
+mdsubcrop_lac<-mdsubcrop[which(mdsubcrop$region %in% lac_reg),]
+
+mdsubcrop_lac<-droplevels(mdsubcrop_lac)
+
+mdwide <- reshape(mdsubcrop_lac, v.names = "Val", idvar = 
+                      c("scenario","commodity","region","productiontype",
+                        "impactparameter"),timevar = "year", direction = "wide")
+
+#lista de paises por regiones
+and_p<-c("LAC-Bolivia","LAC-Colombia","LAC-Ecuador","LAC-Peru","LAC-Venezuela")
+csur_p<-c("LAC-Argentina","LAC-Chile","LAC-Uruguay","LAC-Paraguay")
+cen_p<-c("LAC-Belize","LAC-Other Caribbean","LAC-Costa Rica","LAC-Cuba",
+         "LAC-Dominican Republic","LAC-Guatemala","LAC-Honduras","LAC-Haiti",
+         "LAC-Jamaica","LAC-Nicaragua","LAC-Panama","LAC-El Salvador")
+
+#Regiones a analizar
+and<-subset(mdwide,mdwide$region %in% and_p )
+and<-droplevels(and)
+
+mex<-subset(mdwide,mdwide$region=="LAC-Mexico")
+mex<-droplevels(mex)
+
+bra<-subset(mdwide,mdwide$region=="LAC-Brazil" | mdwide$region=="LAC-Guyanas")
+bra<-droplevels(bra)
+
+csur<-subset(mdwide,mdwide$region %in% csur_p)
+csur<-droplevels(csur)
+
+cen<-subset(mdwide,mdwide$region %in% cen_p)
+cen<-droplevels(cen)
+
+#Agregar por variables para las regiones a analizar
+var_and<-aggregate(and[,paste("Val.",2020:2050,sep='')],
+                   by=list(and$impactparameter,and$scenario,and$commodity),FUN=sum)
+
+var_and<-data.frame("Region"=rep("AND",dim(var_and)[1]),var_and,
+                    'Percentage_Change'=((var_and$Val.2050-var_and$Val.2020)/var_and$Val.2020)*100)
+names(var_and)<-c("Region","Var","GCM","Crop",paste(2020:2050,sep=''),"Percentage_Change")
+
+var_mex<-aggregate(mex[,paste("Val.",2020:2050,sep='')],
+                   by=list(mex$impactparameter,mex$scenario,mex$commodity),FUN=sum)
+
+var_mex<-data.frame("Region"=rep("MEX",dim(var_mex)[1]),var_mex,
+                    'Percentage_Change'=((var_mex$Val.2050-var_mex$Val.2020)/var_mex$Val.2020)*100)
+
+names(var_mex)<-c("Region","Var","GCM","Crop",paste(2020:2050,sep=''),"Percentage_Change")
+
+var_csur<-aggregate(csur[,paste("Val.",2020:2050,sep='')],
+                    by=list(csur$impactparameter,csur$scenario,csur$commodity),FUN=sum)
+
+var_csur<-data.frame("Region"=rep("SUR",dim(var_csur)[1]),var_csur,
+                     'Percentage_Change'=((var_csur$Val.2050-var_csur$Val.2020)/var_csur$Val.2020)*100)
+
+names(var_csur)<-c("Region","Var","GCM","Crop",paste(2020:2050,sep=''),"Percentage_Change")
+
+var_bra<-aggregate(bra[,paste("Val.",2020:2050,sep='')],
+                   by=list(bra$impactparameter,bra$scenario,bra$commodity),FUN=sum)
+
+var_bra<-data.frame("Region"=rep("BRA",dim(var_bra)[1]),var_bra,
+                    'Percentage_Change'=((var_bra$Val.2050-var_bra$Val.2020)/var_bra$Val.2020)*100)
+
+names(var_bra)<-c("Region","Var","GCM","Crop",paste(2020:2050,sep=''),"Percentage_Change")
+
+var_cen<-aggregate(cen[,paste("Val.",2020:2050,sep='')],
+                   by=list(cen$impactparameter,cen$scenario,cen$commodity),FUN=sum)
+
+var_cen<-data.frame("Region"=rep("CEN",dim(var_cen)[1]),var_cen,
+                    'Percentage_Change'=((var_cen$Val.2050-var_cen$Val.2020)/var_cen$Val.2020)*100)
+
+names(var_cen)<-c("Region","Var","GCM","Crop",paste(2020:2050,sep=''),"Percentage_Change")
+
+
+#Juntar todos los marcos de datos
+var_all<-rbind(var_and,var_bra,var_cen,var_mex,var_csur)
+
+#Organizar los datos en una forma apropiada (variables en columnas) para calcular 
+
+# facilmente los Rendimientos ponderados por regiones (Andes, CSUR, CEN, BRA, MEX)
+mdsubcast<-cast(mdsubcrop_lac,scenario+commodity+region+year~impactparameter)       
+
+#Borrar la variable QNXAgg -- Net Trade
+mdsubcast<-mdsubcast[,-which(names(mdsubcast)=="Net Trade" |
+                                 names(mdsubcast)=="Total Demand")]
+
+#Borrar los cultivos que inicien con c elo estan asociados con la variable que acabo de borrar
+jcrops<-c("jbean","jmaiz","jwhea","jsoyb","jrice")
+mdsubcast<-mdsubcast[which(mdsubcast$commodity %in% jcrops),]
+mdsubcast<-droplevels(mdsubcast)
+
+#Calcular rendimientos de las regiones a analizar
+ren_and<-subset(mdsubcast,mdsubcast$region %in% and_p )
+ren_and<-droplevels(ren_and)
+
+ren_mex<-subset(mdsubcast,mdsubcast$region=="LAC-Mexico")
+ren_mex<-droplevels(ren_mex)
+
+ren_bra<-subset(mdsubcast,mdsubcast$region=="LAC-Brazil" | 
+                    mdsubcast$region=="LAC-Guyanas")
+ren_bra<-droplevels(ren_bra)
+
+ren_csur<-subset(mdsubcast,mdsubcast$region %in% csur_p)
+ren_csur<-droplevels(ren_csur)
+
+ren_cen<-subset(mdsubcast,mdsubcast$region %in% cen_p)
+ren_cen<-droplevels(ren_cen)
+
+#Agregar por variables para las regiones a analizar
+var_ren_and<-aggregate(ren_and[,c("Total Production", "Total Area")],
+                       by=list(ren_and$year,ren_and$scenario,ren_and$commodity),FUN=sum)
+var_ren_and<-data.frame(var_ren_and,"region"="AND")
+names(var_ren_and)<-c("year","GCM","Crop","Total Production","Total Area",
+                      "Region")
+
+var_ren_mex<-aggregate(ren_mex[,c("Total Production", "Total Area")],
+                       by=list(ren_mex$year,ren_mex$scenario,ren_mex$commodity),FUN=sum)
+var_ren_mex<-data.frame(var_ren_mex,"region"="MEX")
+names(var_ren_mex)<-c("year","GCM","Crop","Total Production","Total Area",
+                      "Region")
+
+var_ren_bra<-aggregate(ren_bra[,c("Total Production", "Total Area")],
+                       by=list(ren_bra$year,ren_bra$scenario,ren_bra$commodity),FUN=sum)
+var_ren_bra<-data.frame(var_ren_bra,"region"="BRA")
+names(var_ren_bra)<-c("year","GCM","Crop","Total Production","Total Area",
+                      "Region")
+
+var_ren_csur<-aggregate(ren_csur[,c("Total Production", "Total Area")],
+                        by=list(ren_csur$year,ren_csur$scenario,ren_csur$commodity),FUN=sum)
+var_ren_csur<-data.frame(var_ren_csur,"region"="SUR")
+names(var_ren_csur)<-c("year","GCM","Crop","Total Production","Total Area",
+                       "Region")
+
+var_ren_cen<-aggregate(ren_cen[,c("Total Production", "Total Area")],
+                       by=list(ren_cen$year,ren_cen$scenario,ren_cen$commodity),FUN=sum)
+var_ren_cen<-data.frame(var_ren_cen,"region"="CEN")
+names(var_ren_cen)<-c("year","GCM","Crop","Total Production","Total Area",
+                      "Region")
+
+mdsubcast_all<-rbind(var_ren_and,var_ren_bra,var_ren_cen,var_ren_mex,var_ren_csur)
+
+#Calcular los rendimientos ponderados
+mdsubcast_all<-data.frame(mdsubcast_all,"Yield"=mdsubcast_all[,"Total Production"]
+                          / mdsubcast_all[,"Total Area"] )
+
+mdsubcastrend<-cast(mdsubcast_all,GCM+Crop+Region~year,value=c("Yield"))
+
+rend_all<-data.frame("Var"="Yield",mdsubcastrend,
+                     "Percentage_Change"=((mdsubcastrend[,"2050"]-mdsubcastrend[,"2020"])/
+                                              mdsubcastrend[,"2020"])*100)
+
+rend_all<-rend_all[,-which(names(rend_all) %in% c(paste("X",2005:2019,sep='')))]
+rend_all<-rend_all[,c("Region","Var","GCM","Crop",paste("X",2020:2050,sep=''),"Percentage_Change")]
+names(rend_all)<-c("Region","Var","GCM","Crop",paste(2020:2050,sep=''),"Percentage_Change")
+
+#Realizar proceso para graficar rendimientos ponderados por regiones.
+rend_all<-rbind(var_all,rend_all)
+
+
+rend_all$Crop<-revalue(rend_all$Crop, c("cbean"= "Bean",
+                                        "cmaiz"="Maize",
+                                        "crice"="Rice",
+                                        "csoyb"="Soybean",
+                                        "cwhea"="Wheat",
+                                        "jbean"="Bean",
+                                        "jmaiz"="Maize",
+                                        "jrice"="Rice",
+                                        "jsoyb"="Soybean",
+                                        "jwhea"="Wheat"))
+
+rend_all2<-data.frame(rend_all,"Cat"=ifelse(rend_all$GCM=="NoCC","NoCC","CC"))
+
+#Mediana de los cambios porcentuales por categorias.
+anal_data<-data.frame(rend_all[,-c(5:35)],"Cat"=ifelse(rend_all$GCM=="NoCC","NoCC","CC"))
+anal_datag<-aggregate(anal_data[,"Percentage_Change"],
+                      by=list(anal_data$Region,anal_data$Var,anal_data$Crop,anal_data$Cat),
+                      FUN=median)
+write.csv(anal_datag,paste(grd,"anal_datag.csv",sep=""))
+View(anal_datag)
+anal_datag_diff<-ddply(anal_datag,.(Group.1,Group.2,Group.3),summarize,d1=-diff(x,1))
+write.csv(anal_datag_diff,paste(grd,"anal_datag_diff.csv",sep=""))
+View(anal_datag_diff)
+anal_datag2<-aggregate(anal_data[,"Percentage_Change"],by=list(anal_data$Var,anal_data$Cat),FUN=median)
+View(ddply(anal_datag2,.(Group.1),summarize,d1=-diff(x,1)))
+View(anal_datag2)
+write.csv(anal_datag2,paste(grd,"anal_datag2.csv",sep=""))
+
+#Tabla documento
+sub_rend_all<-droplevels(subset(rend_all,rend_all$GCM=="cccma_canesm2" |
+                                    rend_all$GCM=="ipsl_cm5a_lr" |
+                                    rend_all$GCM=="NoCC"))
+t5<-sub_rend_all[,-c(5:35)]
+t5or<-cast(t5,Region+Var~Crop+GCM)
+
+t5or<-droplevels(subset(t5or,t5or$Var!="Total Demand"  &
+                            t5or$Var!="Net Trade"))
+write.csv(t5or,paste(grd,"t5or.csv",sep=""))
+
+
+#Sub conjunto de cultivos
+
+cropsj<-c("jbean","jmaiz","jrice","jsoyb","jwhea")
+
+t_nt<-2020:2050
+
+sub_rend_all2<-subset(rend_all2,rend_all2$Percentage_Change >=quantile(rend_all2$Percentage_Change, c(0.01)) &
+                          rend_all2$Percentage_Change <=quantile(rend_all2$Percentage_Change, c(0.94)))
+
+sub_rend_all2<-subset(rend_all2,rend_all2$Percentage_Change >quantile(rend_all2$Percentage_Change, c(0.01)) &
+                          rend_all2$Percentage_Change <quantile(rend_all2$Percentage_Change, c(0.94)))
+
+sub_rend_all2_datag<-aggregate(sub_rend_all2[,"Percentage_Change"],
+                               by=list(sub_rend_all2$Var,sub_rend_all2$Cat),
+                               FUN=median)
+View(sub_rend_all2_datag)
+write.csv(sub_rend_all2_datag,paste(grd,"sub_rend_all2.csv",sep=""))
+
+
+#Graficos todos juntos juntar var_all y rend_all (net trade area production y rend)
+
+
+tiff(filename=paste(grd,"all_crops_all_variables_all_GCMs.tiff",sep=""), 
+     width = 10, height = 10, units = 'in', res = 100)
+ggplot(rend_all2,aes(x=Cat,y=Percentage_Change,color=Var))  +
+    facet_wrap( ~ Var,ncol=5,shrink=T) +
+    geom_boxplot(alpha=0.4,stat="boxplot") +
+    labs(y="Percentage change",x="") +
+    coord_cartesian(ylim = c(-100, 200)) + 
+    scale_y_continuous( breaks=seq(-100, 200, 20))
+dev.off()
+
+# 
+# tiff(filename=paste(grd,"all_crops_all_variables_all_GCMs.tiff",sep=""), 
+#      width = 10, height = 10, units = 'in', res = 300)
+# ggplot(rend_all2,aes(x=Cat,y=Percentage_Change,color=Var))  +
+#     facet_wrap( ~ Var,ncol=5,shrink=T) +
+#     geom_boxplot(alpha=0.4,stat="boxplot") +
+#     labs(y="Percentage change",x="")+
+#     scale_y_continuous(rend_all2$Percentage_Change,
+#                        limits=quantile(rend_all2$Percentage_Change,prob=c(0.01,0.94)))
+# dev.off()
+# 
+# 
+# tiff(filename=paste(grd,"all_crops_all_variables_all_GCMs.tiff",sep=""), 
+#      width = 10, height = 10, units = 'in', res = 300)
+# ggplot(rend_all2,aes(x=Cat,y=Percentage_Change,color=Var))  +
+#     facet_wrap( ~ Var,ncol=5) +
+#     geom_boxplot(alpha=0.4,stat="boxplot") +
+#     labs(y="Percentage change",x="")+
+#     ylim(-100, 200)
+# dev.off()
+
+
+
+#Realizar proceso para graficar todas las variables por regiones.
+
+pl<-NULL
+for (i in 1:length(levels(rend_all2$Crop))) {
+    
+    tiff(filename=paste(grd,levels(rend_all2$Crop)[i],"_all_variables.tiff",sep=""), 
+         width = 10, height = 7, units = 'in', res = 300)
+    
+    pl[[i]]<-print(ggplot(data=droplevels(subset(rend_all2,rend_all2$Crop ==levels(rend_all2$Crop)[i]
+                                                 & rend_all2$Var !="Net Trade" 
+                                                 & rend_all2$GCM != "NoCC")),
+                          aes(x=Region,y=Percentage_Change,color = Var))  +
+                       facet_wrap( ~ Var,ncol=4,shrink=T) +
+                       geom_point(aes(shape=Cat),data=droplevels(subset(rend_all2,rend_all2$Crop ==levels(rend_all2$Crop)[i]
+                                                                        & rend_all2$Var !="Net Trade" 
+                                                                        & rend_all2$GCM =="NoCC")),
+                                  alpha = 0.4,size=3) +
+                       geom_boxplot(alpha=0.4,stat="boxplot",outlier.shape = NA) +
+                       guides(color=FALSE) + theme(legend.position="bottom",legend.title=element_blank())+
+                       labs(y="Percentage change",x="")
+    )
+    
+    
+    dev.off()
+    print(i)
+}              
+
+#Evolution of production by crop and by region in the NOcc
+datos<-droplevels(subset(rend_all,rend_all$Var==levels(rend_all$Var)[3] 
+                         & rend_all$GCM=="NoCC"))
+datos[,paste(2020:2050,sep="")]<-datos[,paste(2020:2050,sep="")]/datos[,"2020"]
+
+datos<-datos[,-which(names(datos)=="Percentage_Change")]
+
+datos_long<-reshape(datos,varying=paste(2020:2050,sep=""),idvar=c("Region","Var","GCM","Crop")
+                    ,direction="long",v.names="Index_of_Production",times=2020:2050)
+
+tiff(filename=paste(grd,"Evolution of production for all crops and all regions.tiff"),width = 10,
+     height = 12, units = 'in', res = 300)
+ggplot(datos_long,aes(time,Index_of_Production,color=Crop)) + 
+    geom_line(size=1,linetype=6) + facet_wrap(~Region,nrow=5) +
+    theme(legend.position="bottom",legend.text=element_text(size=12),
+          legend.key.size = unit(1, "cm"),text = element_text(size=12))+
+    labs(y="Index of production", x="Year") +
+    scale_colour_brewer(palette="Set1",name = "")
+dev.off()
+
+
+
+#Evolution of Net Trade by crop and by region
+datosnocc<-droplevels(subset(rend_all,rend_all$Var==levels(rend_all$Var)[2] 
+                             & rend_all$GCM=="NoCC"))
+
+datosnocc<-reshape(datosnocc,varying=paste(2020:2050,sep=""),idvar=c("Region","Var","GCM","Crop")
+                   ,direction="long",v.names="Net_trade",times=2020:2050)
+
+datosnocc<-datosnocc[,-c(which(names(datosnocc)=="Var"),which(names(datosnocc)=="GCM"),
+                         which(names(datosnocc)=="Percentage_Change"))]
+
+
+datos<-droplevels(subset(rend_all,rend_all$Var==levels(rend_all$Var)[2]))
+
+datmin<-aggregate(datos[,paste(2020:2050,sep="")],by=list(datos$Region,datos$Crop),FUN=min)
+
+datmin<-reshape(datmin,varying = paste(2020:2050,sep=""),idvar = c("Group.1","Group.2"),
+                direction="long",v.names = "datmin",times=2020:2050)
+names(datmin)<-c("Region","Crop","time","datmin")
+
+datmax<-aggregate(datos[,paste(2020:2050,sep="")],by=list(datos$Region,datos$Crop),FUN=max)
+datmax<-reshape(datmax,varying = paste(2020:2050,sep=""),idvar = c("Group.1","Group.2"),
+                direction="long",v.names = "datmax",times=2020:2050)
+names(datmax)<-c("Region","Crop","time","datmax")
+
+extremos<-merge(datmin,datmax)
+
+datost<-merge(datosnocc,extremos)
+
+py<-NULL
+for (i in 1:length(levels(datost$Crop))) {
+    
+    tiff(filename=paste(grd,levels(datost$Crop)[i],"_net_trade.tiff",sep=""), 
+         width = 10, height = 7, units = 'in', res = 300)
+    
+    
+    py[[i]]<-print(ggplot(data=droplevels(subset(datost,datost$Crop==levels(datost$Crop)[i])),
+                          aes(time,Net_trade,group=Region,color=Region)) + 
+                       geom_line(linetype="dashed",size=1)+
+                       geom_ribbon(aes(ymin=datmin,ymax=datmax,fill=Region,colour=Region,linetype=NA),alpha=0.1)+
+                       labs(y="Net trade (000 mt)",x="Year")+
+                       theme(legend.position="bottom")
+                   
+    )
+    
+    
+    dev.off()
+    print(i)
+}  
+
+
+#Analisis para variables relacionadas con la seguridad alimentaria a nivel de país
+
+#Población en riesgo de padecer hambre
+mdsubfs_pop<-subset(md,md$impactparameter=="PopulationAtRiskXagg - Pop at Risk of Hunger")
+
+#Hacer un subconjunto de md que sólo contenga los paises de LAC
+lac_reg_fs<-levels(mdsubfs_pop$region)[68:92]
+mdsubfs_pop_lac<-mdsubfs_pop[which(mdsubfs_pop$region %in% lac_reg_fs),]
+mdsubfs_pop_lac<-droplevels(mdsubfs_pop_lac)
+mdwidefs_pop <- reshape(mdsubfs_pop_lac, v.names = "Val", idvar = 
+                            c("scenario","commodity","region","productiontype","impactparameter"),
+                        timevar = "year", direction = "wide")
+
+
+#Regiones a analizar
+pop_and<-subset(mdwidefs_pop,mdwidefs_pop$region %in% and_p )
+pop_and<-droplevels(pop_and)
+
+pop_mex<-subset(mdwidefs_pop,mdwidefs_pop$region=="LAC-Mexico")
+pop_mex<-droplevels(pop_mex)
+
+pop_bra<-subset(mdwidefs_pop,mdwidefs_pop$region=="LAC-Brazil" | mdwidefs_pop$region=="LAC-Guyanas")
+pop_bra<-droplevels(pop_bra)
+
+pop_csur<-subset(mdwidefs_pop,mdwidefs_pop$region %in% csur_p)
+pop_csur<-droplevels(pop_csur)
+
+pop_cen<-subset(mdwidefs_pop,mdwidefs_pop$region %in% cen_p)
+pop_cen<-droplevels(pop_cen)
+
+#Agregar por variables para las regiones a analizar
+pop_and<-aggregate(pop_and[,paste("Val.",seq(from=2020,to=2050,by=5),sep='')],
+                   by=list(pop_and$impactparameter,pop_and$scenario),FUN=sum)
+
+pop_and<-data.frame("Region"=rep("AND",dim(pop_and)[1]),pop_and,
+                    'Change'=(pop_and$Val.2050-pop_and$Val.2020))
+
+names(pop_and)<-c("Region","Pop","GCM",seq(from=2020,to=2050,by=5),"Change")
+
+pop_mex<-aggregate(pop_mex[,paste("Val.",seq(from=2020,to=2050,by=5),sep='')],
+                   by=list(pop_mex$impactparameter,pop_mex$scenario),FUN=sum)
+
+pop_mex<-data.frame("Region"=rep("MEX",dim(pop_mex)[1]),pop_mex,
+                    'Change'=(pop_mex$Val.2050-pop_mex$Val.2020))
+
+names(pop_mex)<-c("Region","Pop","GCM",seq(from=2020,to=2050,by=5),"Change")
+
+
+pop_csur<-aggregate(pop_csur[,paste("Val.",seq(from=2020,to=2050,by=5),sep='')],
+                    by=list(pop_csur$impactparameter,pop_csur$scenario),FUN=sum)
+
+pop_csur<-data.frame("Region"=rep("SUR",dim(pop_csur)[1]),pop_csur,
+                     'Change'=(pop_csur$Val.2050-pop_csur$Val.2020))
+
+names(pop_csur)<-c("Region","Pop","GCM",seq(from=2020,to=2050,by=5),"Change")
+
+
+
+pop_bra<-aggregate(pop_bra[,paste("Val.",seq(from=2020,to=2050,by=5),sep='')],
+                   by=list(pop_bra$impactparameter,pop_bra$scenario),FUN=sum)
+
+pop_bra<-data.frame("Region"=rep("BRA",dim(pop_bra)[1]),pop_bra,
+                    'Change'=(pop_bra$Val.2050-pop_bra$Val.2020))
+
+names(pop_bra)<-c("Region","Pop","GCM",seq(from=2020,to=2050,by=5),"Change")
+
+
+
+pop_cen<-aggregate(pop_cen[,paste("Val.",seq(from=2020,to=2050,by=5),sep='')],
+                   by=list(pop_cen$impactparameter,pop_cen$scenario),FUN=sum)
+
+pop_cen<-data.frame("Region"=rep("CEN",dim(pop_cen)[1]),pop_cen,
+                    'Change'=(pop_cen$Val.2050-pop_cen$Val.2020))
+
+names(pop_cen)<-c("Region","Pop","GCM",seq(from=2020,to=2050,by=5),"Change")
+
+
+
+#Juntar todos los marcos de datos
+pop_all<-rbind(pop_and,pop_bra,pop_cen,pop_mex,pop_csur)
+
+pop_all<-data.frame(pop_all,"Cat"=ifelse(pop_all$GCM=="NoCC","NoCC","CC"))
+
+pop_all2<-data.frame(aggregate(pop_all[,c("Change")],
+                               by=list(pop_all$Region,pop_all$Cat),FUN=median))
+pop_all2$x<-pop_all2$x*1000000
+pop_all2 <- transform(pop_all2,Group.1 = reorder(Group.1, x))
+
+tiff(filename=paste(grd,"Impact of CC (in the median GCM) in FS.tiff"), 
+     width = 9, height = 9, units = 'in', res = 300)
+ggplot(pop_all2, aes(Group.1, x, fill = Group.2)) + 
+    geom_bar(stat="identity", position = "dodge") +
+    scale_fill_brewer(palette = "Set1") + 
+    coord_flip()+
+    labs(x="Region",y="Change in the number of people at risk of hunger between 2020 and 2050")
+dev.off()
+
+write.csv(pop_all,paste(grd,"datos_pop.csv",sep=""))
+
+
+
+#Difference between the reduction of the people under risk of hunger in the median 
+# GCM and the NoCC scenario
+nocc<-subset(pop_all2,pop_all2$Group.2=="NoCC")
+cc<-subset(pop_all2,pop_all2$Group.2=="CC")
+f1<-function(nocc,cc) {data.frame("Region"=nocc[,1],"Diff_nocc_cc"=(nocc[,3]-cc[,3]))}
+gr<-f1(nocc,cc)
+gr <- transform(gr,Region = reorder(Region, Diff_nocc_cc))
+
+
+dif<-ddply(pop_all2,.(Group.1),summarize,d1=-diff(x,1))
+options(scipen=999)
+tiff(filename=paste(grd,"Difference between the reduction of people under risk of hunger NoCC y CC.tiff"), 
+     width = 9, height = 6, units = 'in', res = 300)
+ggplot(gr, aes(Region, Diff_nocc_cc)) + geom_bar(stat="identity", position = "dodge") + 
+    scale_fill_brewer(palette = "Set1") + coord_flip() + 
+    labs(x="Region",y="Difference between the change of people under risk of hunger in NoCC and the median GCM")
+dev.off()
+
+#Analisis de precios
+md_prices<-read.csv(file="Resultados_Prices_12_02_15.csv",header=T)
+md_prices_w<-subset(md_prices,md_prices$impactparameter=="PWXAgg -- World Prices")
+cropsc<-c("cbean","cmaiz","crice","csoyb","cwhea")
+md_prices<-md_prices_w[which(md_prices_w$commodity %in% cropsc),]
+md_prices<-droplevels(md_prices)
+md_prices <- reshape(md_prices, v.names = "Val", 
+                     idvar = c("scenario","commodity","region","productiontype","impactparameter"),
+                     timevar = "year", direction = "wide")
+
+md_prices<-data.frame(md_prices,'Percentage_change'=((md_prices$Val.2050-md_prices$Val.2020)/
+                                                         md_prices$Val.2020)*100)
+
+md_prices<-md_prices[,c(1:3,52)]
+md_prices$commodity<-revalue(md_prices$commodity, c("cbean"="Dry bean",
+                                                    "cmaiz"="Maize",
+                                                    "crice"="Rice",
+                                                    "csoyb"="Soybean",
+                                                    "cwhea"="Wheat"))
+md_prices$impactparameter<-revalue(md_prices$impactparameter,
+                                   c("PWXAgg -- World Prices"="World Prices"))
+
+#write.csv(md_prices,paste(grd,"world_prices.csv",sep=""))
+
+#Tabla documento
+tpor<-cast(md_prices,impactparameter+commodity~scenario)
+write.csv(tpor,paste(grd,"tpor.csv",sep=""))
+
+
+for (c in 1:length(levels(rend_all$Crop))) {
+    
+    tiff(filename=paste(grd,"Evolution of ",levels(rend_all$Var)[2]," of ",levels(rend_all$Crop)[c],".tiff",sep=""),
+         width = 9,height = 7, units = 'in', res = 300)
+    
+    datos<-droplevels(subset(rend_all,rend_all$Var==levels(rend_all$Var)[2] 
+                             & rend_all$Crop==levels(rend_all$Crop)[c]))
+    
+    par(mfrow=c(2,3))
+    for (r in 1:length(levels(datos$Region))) {
+        plot(t_nt,as.matrix(subset(datos,datos$Region==levels(datos$Region)[r])[10,5:35]),xlab=levels(rend_all$Region)[r],ylab="000 mt",
+             ylim=c(min(subset(datos,datos$Region==levels(datos$Region)[r])[,5:35]),
+                    max(subset(datos,datos$Region==levels(datos$Region)[r])[,5:35])),type="l",col=1,lwd=2)
+        
+        for (h in 1:(dim(subset(datos,datos$Region==levels(datos$Region)[r]))[1]-1)) {
+            lines(t_nt,subset(datos,datos$Region==levels(datos$Region)[r])[h,5:35],col=h+1,lwd=1.5,lty=(h+1))
+        }
+    }
+    par(mfrow=c(1,1))
+    
+    par(fig = c(0, 1, 0, 1), oma = c(0, 0, 0, 0), mar = c(0, 0, 0, 0), new = TRUE)
+    plot(0, 0, type = "n", bty = "n", xaxt = "n", yaxt = "n")
+    legend(x=0.5,y=-0.2,legend=levels(rend_all$GCM),lty=c(2:10,1),col=c(2:10,1),lwd=c(rep(1,9),2))
+    mtext(paste("Evolution of",levels(rend_all$Var)[2]," of ",levels(rend_all$Crop)[c]),
+          side = 3, line = -2, outer = TRUE,cex=0.9) 
+    print(c)
+    dev.off()
+}
+
+# Share at Risk of Hunger
+mdsubfs_risk<-subset(md,md$impactparameter=="ShareAtRiskXagg -- Share at Risk of Hunger")
+mdsubfs_risk<-droplevels(mdsubfs_risk)
+
+#Hacer un subconjunto de md que sólo contenga los paises de LAC
+lac_reg_fs_risk<-levels(mdsubfs_risk$region)[63:85]
+
+mdsubfs_risk_lac<-mdsubfs_risk[which(mdsubfs_risk$region %in% lac_reg_fs_risk),]
+
+mdsubfs_risk_lac<-droplevels(mdsubfs_risk_lac)
+
+mdwidefs_risk <- reshape(mdsubfs_risk_lac, v.names = "Val", idvar = 
+                             c("scenario","commodity","region","productiontype","impactparameter"),
+                         timevar = "year", direction = "wide")
+
+mdwidefs_risk<-subset(mdwidefs_risk,mdwidefs_risk$region !="LAC")
+
+mdwidefs_risk$region<-revalue(mdwidefs_risk$region, c("LAC-Argentina"="Argentina",
+                                                      "LAC-Belize"="Belize","LAC-Bolivia"="Bolivia",
+                                                      "LAC-Brazil"="Brazil","LAC-Chile"="Chile",
+                                                      "LAC-Colombia"="Colombia",
+                                                      "LAC-Costa Rica"="Costa Rica",
+                                                      "LAC-Cuba"="Cuba",
+                                                      "LAC-Dominican Republic"="Dominican Republic",
+                                                      "LAC-Ecuador"="Ecuador",
+                                                      "LAC-El Salvador"="El Salvador",
+                                                      "LAC-Guatemala"="Guatemala",
+                                                      "LAC-Guyanas"="Guyanas",
+                                                      "LAC-Haiti"="Haiti",
+                                                      "LAC-Honduras"="Honduras",
+                                                      "LAC-Mexico"="Mexico",
+                                                      "LAC-Nicaragua"="Nicaragua",
+                                                      "LAC-Panama"="Panama",
+                                                      "LAC-Paraguay"="Paraguay",
+                                                      "LAC-Peru"="Peru",
+                                                      "LAC-Uruguay"="Uruguay",
+                                                      "LAC-Venezuela"="Venezuela"))
+
+summary(mdwidefs_risk)
+
+mdwidefs2_risk<-data.frame(mdwidefs_risk,"Cat"=ifelse(mdwidefs_risk$scenario=="NoCC","NoCC","CC"))
+
+datos_risk<-data.frame(aggregate(mdwidefs2_risk[,c("Val.2020","Val.2050")],
+                                 by=list(mdwidefs2_risk$region,mdwidefs2_risk$Cat),FUN=median))
+datos_risk<-data.frame(datos_risk,"Change"=datos_risk$Val.2050-datos_risk$Val.2020)
+datos_risk <- transform(datos_risk,Group.1 = reorder(Group.1, Val.2050 ))
+
+
+tiff(filename=paste(grd,"Impact of CC (in the median GCM) in percent people at risk of hunger.tiff"), 
+     width = 9, height = 6, units = 'in', res = 300)
+ggplot(datos_risk, aes(Group.1,Val.2050, fill = Group.2)) + 
+    geom_bar(stat="identity", position = "dodge") + 
+    scale_fill_brewer(palette = "Set1") + coord_flip() + 
+    ylab("Share of population at risk of hunger in 2050 (%)") +
+    xlab("Country") + theme(legend.title = element_blank())
+dev.off()
