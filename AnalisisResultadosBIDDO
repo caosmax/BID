@@ -1,0 +1,372 @@
+E*********************************************Dofile Surplus Economic Model Anaisys  of Graph********************************************************************
+** Autor Carlos Edo Gonzalez
+** Surplus model applied Forajes 
+clear all
+
+
+****Begin Code
+**folder to work 
+cd "C:\Workspace\ModelSurplusForages"
+import excel "C:\Workspace\ModelSurplusForages\ParametrosSocioeconomicos.xlsm", sheet("stata") firstrow
+save "SurplusEconomicModel.dta", replace
+use SurplusEconomicModel, clear
+
+
+**** code for runing to continue
+set more off 
+
+********** create id by country
+**** Gen id
+gen id=.
+replace id=1 if Countries=="Kenya"
+replace id=2 if Countries=="Tanzania"
+replace id=3 if Countries=="Ethiopia"
+replace id=4 if Countries=="Uganda"
+replace id=5 if Countries=="Rwanda"
+replace id=6 if Countries=="Burundi"
+label define id 1"Kenya" 2"Tanzania" 3"Ethiopia" 4"Uganda" 5"Rwanda" 6"Burundi"
+label value id id   
+tab id
+
+********* create sce according scenarios of surplus model
+***** Gen Sce
+gen sce=.
+replace sce=1 if Scenario=="Base"
+replace sce=2 if Scenario=="Sce1"
+replace sce=3 if Scenario=="Sce2"
+replace sce=4 if Scenario=="Sce3"
+replace sce=5 if Scenario=="Sce4"
+replace sce=6 if Scenario=="SceProfile"
+replace sce=7 if Scenario=="SceSpatial"
+label define sce 1"Base" 2"Sce1" 3"Sce2" 4"Sce3" 5"Sce4" 6"SceProfile" 7"SceSpatial"
+label value sce sce   
+tab sce
+save "SurplusEconomicModel.dta", replace
+use SurplusEconomicModel.dta, clear
+
+********** Change Surplus Consumer, Change Surplus Producer, Change Surplus Total, Present Value Net (NPV)
+***gen variables
+gen vpnG= NPVD10Global/1000
+gen changets= ChangeTS/1000
+gen changecs= ChangeCS/1000
+gen changeps= ChangePS/1000
+
+
+****gen Share Change Consumer surplus of Change Total surplus
+gen sharecs=ChangeCS/ChangeTS*100
+gen shareps=ChangePS/ChangeTS*100
+save "SurplusEconomicModel.dta", replace
+
+
+**********************************************************************************************************************
+**************************************************** creating graphs *************************************************
+
+****************************************************
+**** Graph Internal Rate of Return
+****IRR by country
+
+
+***being i each scenario and id the countries 
+local v `""Base" "Sce1"  "Sce2"  "Sce3" "Sce4" "SceProfile" "SceSpatial""'
+foreach var of local v {
+#delimit;
+graph bar IRR if Scenario=="`var'", over(id , sort(1) label(labsize(small) angle(h)))  
+ 	title("{it: IRR by Country}")
+	ytitle("Percentage")					
+	ylabel(#10, angle(h) labsize(small))
+	blabel(bar, position(inside) format(%9.1f) color(white)) scheme(s1mono) ; 		
+#delimit cr ;
+graph save "C:\Workspace\ModelSurplusForages\graphs\\IRR`var'.gph", replace
+graph export "C:\Workspace\ModelSurplusForages\graphs\\IRR`var'.png", width(4000) replace 
+}
+*end
+
+
+/* 
+By each country, this code allow graph the IRRI, "Internal Rate Return."
+
+
+*/
+
+**********************************
+****IRR global by Scenario, this includes all countries
+#delimit;
+graph bar IRRGlobal , over(sce, sort(1) label(labsize(small) angle(h)))  
+ 	title("{it: IRR Global by Scenario}" )
+	ytitle("Percentage")					
+	ylabel(#10, angle(h) labsize(small))
+	blabel(bar, position(inside) format(%9.1f) color(white)) scheme(s1mono)  ; 		
+#delimit cr ;
+graph save "C:\Workspace\ModelSurplusForages\graphs\\IRRglobal.gph", replace
+graph export "C:\Workspace\ModelSurplusForages\graphs\\IRRglobal.png", width(4000) replace 
+
+/* 
+By each country, this code allow graph the IRRI, "Internal Rate Return."
+*/
+
+
+*********************************
+****VPN_Global by Scenario, Present Value Net (NPV)
+
+#delimit;
+graph bar vpnG, over(sce, sort(vpnG) label(labsize(small) angle(h)))  
+ 	title("{it:  VPN Global by Scenario}" "{it:US miles}" )
+	ytitle("Dólares Miles")					
+	ylabel(#10, angle(h) labsize(small))
+	blabel(bar, position(inside) format(%9.1f) color(white)) scheme(s1mono) ; 		
+#delimit cr ;
+graph save "C:\Workspace\ModelSurplusForages\graphs\\NPVD10Global.gph", replace
+graph export "C:\Workspace\ModelSurplusForages\graphs\\NPVD10Global.png", width(4000) replace 
+
+
+*********************************
+*****Share Surplus Consumer/Producer Vs IRR
+
+#delimit;
+graph bar sharecs shareps , over(sce, sort(vpnG) label(labsize(small) angle(h)))  
+ 	title("{it: Share CS and PS of TS by Scenario}" "{it:%}" )
+	legend(label(1 "ShareCS") label(2 "SharePS"))
+	ytitle("Percentage")					
+	ylabel(#10, angle(h) labsize(small))
+	blabel(bar, position(inside) format(%9.1f) color(white)) ; 		
+#delimit cr ;
+graph save "C:\Workspace\ModelSurplusForages\graphs\\ShareCSPS.gph", replace
+graph export "C:\Workspace\ModelSurplusForages\graphs\\ShareCSPS.png", width(4000) replace 
+
+
+
+*************************************************************************************************************
+*************************************************************************************************************
+*************************************************************************************************************
+***** Maps Results
+
+save "SurplusEconomicModel.dta", replace
+clear
+
+****maps
+**** To get coordinates 
+shp2dta using "C:\Workspace\ModelSurplusForages\EastAfrica\\EastAfrica.shp", /*
+				*/database("C:\Workspace\ModelSurplusForages\EastAfrica\\Africadb.dta") coordinates("C:\Workspace\ModelSurplusForages\EastAfrica\\Africacoord") genid(id) genc(c) replace
+
+
+****Change shape
+use "C:\Workspace\ModelSurplusForages\\SurplusEconomicModel.dta", clear
+reshape wide ChangeTS ChangeCS ChangePS Anuity IRR NPVD10Global IRRGlobal Scenario changets changecs changeps vpnG sharecs shareps, i(i) j(sce)
+drop Scenario1 Scenario2 Scenario3 Scenario4 Scenario5 Scenario6 Scenario7
+rename id genid
+save "C:\Workspace\ModelSurplusForages\\SurplusEconomicModelReshape.dta", replace
+
+
+
+**** Creating value for countries
+use "C:\Workspace\ModelSurplusForages\EastAfrica\\Africadb.dta", clear
+gen genid=.
+replace genid=1 if ADM0_NAME=="Kenya"
+replace genid=2 if ADM0_NAME=="United Republic of Tanzania"
+replace genid=3 if ADM0_NAME=="Ethiopia"
+replace genid=4 if ADM0_NAME=="Uganda"
+replace genid=5 if ADM0_NAME=="Rwanda"
+replace genid=6 if ADM0_NAME=="Burundi"
+label define genid 1"Kenya" 2"United Republic of Tanzania" 3"Ethiopia" 4"Uganda" 5"Rwanda" 6"Burundi"
+label value genid genid   
+tab genid
+
+replace ADM0_NAME= "Tanzania" if ADM0_NAME=="United Republic of Tanzania"
+
+***** DATABASE for mapping
+save "C:\Workspace\ModelSurplusForages\EastAfrica\\Africadb.dta", replace
+
+******Other procces 
+use "C:\Workspace\ModelSurplusForages\\SurplusEconomicModelReshape.dta", clear
+rename genid id
+save "C:\Workspace\ModelSurplusForages\\SurplusEconomicModelReshape.dta", replace
+
+
+******* Merge
+use "C:\Workspace\ModelSurplusForages\EastAfrica\\Africadb.dta", clear
+merge 1:1 id using "C:\Workspace\ModelSurplusForages\\SurplusEconomicModelReshape.dta"
+save "C:\Workspace\ModelSurplusForages\EastAfrica\\AfricaGraphs.dta", replace
+reshape long ChangeTS ChangeCS ChangePS Anuity IRR NPVD10Global IRRGlobal Scenario , i(id) j(i)
+
+***gen variables
+gen vpnG= NPVD10Global/1000
+gen changets= ChangeTS/1000
+gen changecs= ChangeCS/1000
+gen changeps= ChangePS/1000
+
+save "C:\Workspace\ModelSurplusForages\\MapsSurplusEconomicModelReshape.dta", replace
+
+
+***file for make maps
+use "C:\Workspace\ModelSurplusForages\\SurplusEconomicModelReshape.dta", clear
+
+***********************************************************************************************
+*****drivers graph for maps 
+***mapa 1 Change total surplus
+
+set more off
+use "C:\Workspace\ModelSurplusForages\\MapsSurplusEconomicModelReshape.dta", clear
+decode i, generate(ij)
+local t "ChangeTotalSurplus"
+local v `""Base" "Sce1"  "Sce2"  "Sce3" "Sce4" "SceProfile" "SceSpatial""'
+foreach var of local v {
+#delimit
+;
+spmap ChangeTS using "C:\Workspace\ModelSurplusForages\EastAfrica\\Africacoord.dta" if ij=="`var'", id(id) 
+	clmethod(quantile) clnumber(4)
+	fcolor(BuRd) ocolor(white ..) osize(thin ..) 
+	legend(region(lcolor(black)) position(5)size(small)) subtitle("`t'" " ", size(4)) 
+	legtitle("{it:`t'}") legstyle(2)  
+	graphregion(icolor(none)) plotregion(icolor(gs11))
+	label(data("C:\Workspace\ModelSurplusForages\EastAfrica\\Africadb.dta") xcoord(x_c) ycoord(y_c) label(ADM0_NAME) color(black) size(*1.2))
+;
+#delimit cr
+graph save "C:\Workspace\ModelSurplusForages\graphs\\`t'`var'.gph", replace
+graph export "C:\Workspace\ModelSurplusForages\graphs\\`t'`var'.png", width(4000) replace 
+}
+*end
+
+***********************************************************************************************
+****IRRI
+
+
+local r "InternalRateReturn"
+local v `""Base" "Sce1"  "Sce2"  "Sce3" "Sce4" "SceProfile" "SceSpatial""'
+foreach var of local v {
+
+#delimit 
+;
+spmap IRR using "C:\Workspace\ModelSurplusForages\EastAfrica\\Africacoord.dta" if ij=="`var'", id(id)  
+	clmethod(quantile) clnumber(4) 
+	fcolor(BrBG) ocolor(white ..) osize(thin ..)      
+	legend(region(lcolor(black)) position(5) size(small)) subtitle("`r'" " ", size(4)) 
+	legtitle("{it:`r'}") legstyle(2) 
+	graphregion(icolor(none)) plotregion(icolor(gs11))
+	label(data("C:\Workspace\ModelSurplusForages\EastAfrica\\Africadb.dta") xcoord(x_c) ycoord(y_c) label(ADM0_NAME) color(black) size(*1.2))
+ ;
+ #delimit cr
+graph save "C:\Workspace\ModelSurplusForages\graphs\\`r'`var'.gph", replace
+graph export "C:\Workspace\ModelSurplusForages\graphs\\`r'`var'.png", width(4000) replace 
+}
+*end
+
+**********************************************************************************************
+
+
+****Anuaity
+local a "Anuity"
+local v `""Base" "Sce1"  "Sce2"  "Sce3" "Sce4" "SceProfile" "SceSpatial""'
+foreach var of local v {
+#delimit
+;
+spmap Anuity using "C:\Workspace\ModelSurplusForages\EastAfrica\\Africacoord.dta" if ij=="`var'", id(id)  
+	clmethod(quantile) clnumber(4) 
+	fcolor(RdGy) ocolor(white ..) osize(thin ..)      
+	legend(region(lcolor(black)) position(5) size(small)) subtitle("`a'" " ", size(4)) 
+	legtitle("{it:`a'}") legstyle(2) 
+	graphregion(icolor(none)) plotregion(icolor(none))
+	label(data("C:\Workspace\ModelSurplusForages\EastAfrica\\Africadb.dta") xcoord(x_c) ycoord(y_c) label(ADM0_NAME) color(black) size(*1.2))
+;
+#delimit cr
+graph save "C:\Workspace\ModelSurplusForages\graphs\\`a'`var'.gph", replace
+graph export "C:\Workspace\ModelSurplusForages\graphs\\`a'`var'.png", width(4000) replace 
+}
+*end
+
+
+use "C:\Workspace\ModelSurplusForages\\MapsSurplusEconomicModelReshape.dta", clear
+decode i, generate(ij)
+save "C:\Workspace\ModelSurplusForages\\MapsSurplusEconomicModelReshape.dta", replace
+
+/*
+*************************************************************************************************************
+***** VNP Global 
+use "C:\Workspace\ModelSurplusForages\\MapsSurplusEconomicModelReshape.dta", clear
+local v `""Kenya" "Tanzania"  "Ethiopia"  "Uganda" "Rwanda" "Burundi""'
+local p "Present Value Net Global"
+foreach var of local v {
+#delimit 
+;
+graph pie NPVD10Global if Countries=="`var'", over(ij)  
+plabel(_all name, size(*1.5) color(black) format(%3.2f) gap(13))  
+pie(_all, explode) plabel(_all  percent) 
+legend(off)  intensity(*0.9)  
+title("{it:`var'}") plotregion(lstyle(none))
+scheme(s1color )
+;
+#delimit cr
+graph save "C:\Workspace\ModelSurplusForages\graphs\\VpnGlobal`var'.gph", replace
+graph export "C:\Workspace\ModelSurplusForages\graphs\\VpnGlobal`var'.png", width(4000) replace 
+}
+*end
+
+*/
+******combinte graphs
+
+****BASE
+cd"C:\Workspace\ModelSurplusForages\graphs"
+
+gr combine AnuityBase.gph "ChangeTotalSurplusBase.gph" IRRBase.gph InternalRateReturnBase.gph , rows(2)  cols(2) ///
+	graphregion(margin(l=30 r=30)) title("ScenarioBase") imargin(0 0 0 0) iscale(*1.5)  ///
+	scheme(s1color) altshrink
+graph save "C:\Workspace\ModelSurplusForages\graphs\\EscenarioBase.gph", replace
+graph export "C:\Workspace\ModelSurplusForages\graphs\\EscenarioBase.png", width(4000) replace 
+
+
+
+****SCE1
+gr combine  AnuitySce1.gph "ChangeTotalSurplusSce1.gph" IRRSce1.gph InternalRateReturnSce1.gph , rows(2)  cols(2) ///
+	graphregion(margin(l=30 r=30)) title("Scenario1") imargin(0 0 0 0) iscale(*1.5)  ///
+	scheme(s1color) altshrink
+graph save "C:\Workspace\ModelSurplusForages\graphs\\Escenario1.gph", replace
+graph export "C:\Workspace\ModelSurplusForages\graphs\\Escenario1.png", width(4000) replace 
+
+
+****SCE2
+gr combine AnuitySce2.gph "ChangeTotalSurplusSce2.gph" IRRSce2.gph InternalRateReturnSce2.gph , rows(2)  cols(2) ///
+	graphregion(margin(l=30 r=30)) title("Scenario2") imargin(0 0 0 0) iscale(*1.5)  ///
+	scheme(s1color) altshrink
+graph save "C:\Workspace\ModelSurplusForages\graphs\\Escenario2.gph" , replace
+graph export "C:\Workspace\ModelSurplusForages\graphs\\Escenario2.png", width(4000) replace 
+
+
+****SCE3
+gr combine AnuitySce3.gph "ChangeTotalSurplusSce3.gph" IRRSce3.gph InternalRateReturnSce3.gph , rows(2)  cols(2) ///
+	graphregion(margin(l=30 r=30)) title("Scenario3") imargin(0 0 0 0) iscale(*1.5)  ///
+	scheme(s1color) altshrink
+graph save "C:\Workspace\ModelSurplusForages\graphs\\Escenario3.gph", replace
+graph export "C:\Workspace\ModelSurplusForages\graphs\\Escenario3.png", width(4000) replace 
+
+****SCE4
+gr combine AnuitySce4.gph "ChangeTotalSurplusSce4.gph" IRRSce4.gph  InternalRateReturnSce4.gph , rows(2)  cols(2) ///
+	graphregion(margin(l=30 r=30)) title("Scenario4") imargin(0 0 0 0) iscale(*1.5)  ///
+	scheme(s1color) altshrink
+graph save "C:\Workspace\ModelSurplusForages\graphs\\Escenario4.gph", replace
+graph export "C:\Workspace\ModelSurplusForages\graphs\\Escenario4.png", width(4000) replace 
+
+****SCEspatial
+gr combine AnuitySceSpatial.gph "ChangeTotalSurplusSceSpatial.gph" IRRSceSpatial.gph  InternalRateReturnSceProfile.gph,  rows(2)  cols(2) ///
+	graphregion(margin(l=30 r=30)) title("ScenarioSpatial") imargin(0 0 0 0) iscale(*1.5)  ///
+	scheme(s1color) altshrink
+graph save "C:\Workspace\ModelSurplusForages\graphs\\EscenarioSpatial.gph", replace
+graph export "C:\Workspace\ModelSurplusForages\graphs\\EscenarioSpatial.png", width(4000) replace 
+
+****SCEIndexprofile
+gr combine AnuitySceProfile.gph "ChangeTotalSurplusSceProfile.gph" IRRSceProfile.gph InternalRateReturnSceSpatial.gph, rows(2)  cols(2) ///
+	graphregion(margin(l=30 r=30)) title("ScenarioProfile") imargin(0 0 0 0) iscale(*1.5)  ///
+	scheme(s1color) altshrink
+graph save "C:\Workspace\ModelSurplusForages\graphs\\EscenarioProfile.gph", replace
+graph export "C:\Workspace\ModelSurplusForages\graphs\\EscenarioProfile.png", width(4000) replace 
+
+
+
+
+
+******************************************************************************
+******************************************************************************
+******************************************************************************
+******************************************************************************
+******************************************************************************
+******************************************************************************
+
+nter file contents here
