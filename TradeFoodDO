@@ -1,0 +1,845 @@
+*****Analisis de comercio y seguridad alimentaria
+
+
+*****nombre del archivo
+use FoodNew.dta, clear
+
+****organizar la variable region
+
+*** EAP, EUR, FSU, LAC, MEN, NAM, SAS, WLD
+gen zona=.
+replace zona=1 if region=="LAC"
+replace zona=2 if region=="LAC-Argentina"
+replace zona=3 if region=="LAC-Belize"
+replace zona=4 if region=="LAC-Bolivia"
+replace zona=5 if region=="LAC-Brazil"
+replace zona=6 if region=="LAC-Chile"
+replace zona=7 if region=="LAC-Colombia"
+replace zona=8 if region=="LAC-Costa Rica"
+replace zona=9 if region=="LAC-Cuba"
+replace zona=10 if region=="LAC-Dominican Republic"
+replace zona=11 if region=="LAC-Ecuador"
+replace zona=12 if region=="LAC-El Salvador"
+replace zona=13 if region=="LAC-Guatemala"
+replace zona=14 if region=="LAC-Guyanas"
+replace zona=15 if region=="LAC-Haiti"
+replace zona=16 if region=="LAC-Honduras"
+replace zona=17 if region=="LAC-Jamaica"
+replace zona=18 if region=="LAC-Mexico"
+replace zona=19 if region=="LAC-Nicaragua"
+replace zona=20 if region=="LAC-Other Caribbean"
+replace zona=21 if region=="LAC-Panama"
+replace zona=22 if region=="LAC-Paraguay"
+replace zona=23 if region=="LAC-Peru"
+replace zona=24 if region=="LAC-Uruguay"
+replace zona=25 if region=="LAC-Venezuela"
+
+#delimit;
+label define zona 1 "LAC" 2"LAC-Argentina" 3"LAC-Belize" 4"LAC-Bolivia" 5"LAC-Brazil"
+	6"LAC-Chile" 7"LAC-Colombia" 8"LAC-Costa Rica" 9"LAC-Cuba" 10"LAC-Dominican Republic"
+	11"LAC-Ecuador" 12"LAC-El Salvador" 13"LAC-Guatemala" 14"LAC-Guyanas" 15"LAC-Haiti"
+	16"LAC-Honduras" 17"LAC-Jamaica" 18"LAC-Mexico" 19"LAC-Nicaragua" 20"LAC-Other Caribbean"
+	21"LAC-Panama" 22"LAC-Paraguay" 23"LAC-Peru" 24"LAC-Uruguay" 25"LAC-Venezuela", modify; 
+#delimit cr
+label value zona zona
+tab zona 
+
+
+****GCMs
+gen gcm=.
+replace gcm=1 if scenario=="NoCC"
+replace gcm=2 if scenario=="bcc_csm1_1"
+replace gcm=3 if scenario=="bnu_esm"
+replace gcm=4 if scenario=="cccma_canesm2"
+replace gcm=5 if scenario=="gfld_esm2g"
+replace gcm=6 if scenario=="inm_cm4"
+replace gcm=7 if scenario=="ipsl_cm5a_lr"
+replace gcm=8 if scenario=="miroc_miroc5"
+replace gcm=9 if scenario=="mpi_esm_mr"
+replace gcm=10 if scenario=="ncc_noresm1_m"
+
+#delimit;
+label define gcm 1"NoCC" 2"bcc_csm1_1" 3"bnu_esm" 4"cccma_canesm2" 5"gfld_esm2g"
+	6"inm_cm4" 7"ipsl_cm5a_lr" 8"miroc_miroc5" 9"mpi_esm_mr" 10"ncc_noresm1_m";
+#delimit cr
+label value gcm gcm 
+tab gcm 
+
+**** Commodity
+//c_crops relation about trade
+gen ccrop=.
+replace ccrop=1 if commodity=="cbean"
+replace ccrop=2 if commodity=="cmaiz"
+replace ccrop=3 if commodity=="crice"
+replace ccrop=4 if commodity=="csoyb"
+replace ccrop=5 if commodity=="cwhea"
+
+
+label define ccrop 1"cbean" 2"cmaiz" 3"crice" 4"csoyb" 5"cwhea", replace
+label value ccrop ccrop 
+tab ccrop
+
+
+/*
+// j_crops relation about production, yield, area harvest
+gen jcrop=.
+replace jcrop=1 if commodity=="jbean"
+replace jcrop=2 if commodity=="jmaiz"
+replace jcrop=3 if commodity=="jrice"
+replace jcrop=4 if commodity=="jsoyb"
+replace jcrop=5 if commodity=="jwhea"
+
+label define jcrop 1"jbean" 2"jmaiz" 3"jrice" 4"jsoyb" 5"jwhea"
+label value jcrop jcrop
+tab jcrop 
+
+/// production type
+gen typeQ=.
+replace typeQ=1 if productiontype=="total"
+replace typeQ=2 if productiontype=="air"
+replace typeQ=3 if productiontype=="arf"
+replace typeQ=4 if productiontype=="gir"
+
+label define typeQ 1"total" 2"air" 3"arf" 4"gir"
+label value typeQ
+
+*/
+
+***** ImpactParameter
+
+       impactparameter |      Freq.     Percent        Cum.
+----------------------------------------+-----------------------------------
+                          FoodAvailXAgg |  2,857,060        9.63        9.63
+           GDPHXAgg -- Household Income |    153,640        0.52       10.15
+                      GDPXAgg -- Income |     76,820        0.26       10.41
+ PerCapKCalCXAgg -- PcKcal by Commodity |    604,900        2.04       12.44
+                         PerCapKCalXAgg |     16,700        0.06       12.50
+PopulationAtRiskXagg - Pop at Risk of.. |     15,700        0.05       12.55
+                 QDXAgg -- Total Demand |  3,784,880       12.76       25.31
+ QESHXAgg -- Export Share of Production |  1,029,135        3.47       28.78
+                       QEXAgg -- Export |  1,029,135        3.47       32.24
+             QFXAgg -- Household Demand |  2,857,060        9.63       41.87
+     QMSHXAgg -- Import Share of Demand |  2,586,236        8.72       50.59
+                       QMXAgg -- Import |  2,586,236        8.72       59.31
+QNSH1XAgg -- Net Trade Share of Produ.. |  2,420,603        8.16       67.46
+ QNSH2XAgg -- Net Trade Share of Demand |  3,443,183       11.60       79.07
+                    QNXAgg -- Net Trade |  3,420,550       11.53       90.59
+           QSupXAgg -- Commodity Supply |  2,762,300        9.31       99.90
+ShareAtRiskXagg -- Share at Risk of H.. |     15,700        0.05       99.96
+TotalMalnourishedXagg -- Malnurished .. |     12,936        0.04      100.00
+----------------------------------------+-----------------------------------
+                                  Total | 29,672,774      100.
+
+								  "TQNSH2XAgg -- Net Trade Share of Demand"
+								  
+//// impact parameter
+gen parameter=.
+replace parameter=1 if impactparameter=="FoodAvailXAgg"
+replace parameter=2 if impactparameter=="GDPHXAgg -- Household Income"
+replace parameter=3 if impactparameter=="GDPXAgg -- Income"
+replace parameter=4 if impactparameter=="PerCapKCalCXAgg -- PcKcal by Commodity"
+replace parameter=5 if impactparameter=="PerCapKCalXAgg"
+replace parameter=6 if impactparameter=="PopulationAtRiskXagg - Pop at Risk of Hunger"
+replace parameter=7 if impactparameter=="QDXAgg -- Total Demand"
+replace parameter=8 if impactparameter=="QESHXAgg -- Export Share of Production"
+replace parameter=9 if impactparameter=="QEXAgg -- Export"
+replace parameter=10 if impactparameter=="QMSHXAgg -- Import Share of Demand"
+replace parameter=11 if impactparameter=="QMXAgg -- Import"
+replace parameter=12 if impactparameter=="QNSH1XAgg -- Net Trade Share of Production"
+replace parameter=13 if impactparameter=="QNXAgg -- Net Trade"
+replace parameter=14 if impactparameter=="QSupXAgg -- Commodity Supply"
+replace parameter=15 if impactparameter=="ShareAtRiskXagg -- Share at Risk of Hunger"
+replace parameter=16 if impactparameter=="TotalMalnourishedXagg -- Malnurished Children"
+replace parameter=17 if impactparameter=="QNSH2XAgg -- Net Trade Share of Demand"
+replace parameter=18 if impactparameter=="QFXAgg -- Household Demand"
+
+#delimit;
+label define parameter 1"FoodAvailXAgg" 2"GDPHXAgg -- Household Income"
+3"GDPXAgg -- Income" 4"PerCapKCalCXAgg -- PcKcal by Commodity"
+5"PerCapKCalXAgg" 6"PopulationAtRiskXagg - Pop at Risk of Hunger"
+7"QDXAgg -- Total Demand " 8"QESHXAgg -- Export Share of Production"
+9"QEXAgg -- Export" 10"QMSHXAgg -- Import Share of Demand"
+11"QMXAgg -- Import" 12"QNSH1XAgg -- Net Trade Share of Production" 13"QNXAgg -- Net Trade"
+14"QSupXAgg -- Commodity Supply" 15"ShareAtRiskXagg -- Share at Risk of Hunger" 
+16"TotalMalnourishedXagg -- Malnurished Children" 17"QNSH2XAgg -- Net Trade Share of Demand" 18"QFXAgg -- Household Demand", modify ;
+#delimit cr
+label value parameter parameter
+tab parameter 
+
+drop parameter 
+
+**********************SubregionesBID 
+gen subregionBID=.
+replace subregionBID=1 if zona==1
+replace subregionBID=2 if inlist(zona,2, 6, 22, 24)
+replace subregionBID=3 if inlist(zona,4, 7, 11, 23, 25)
+replace subregionBID=4 if inlist(zona,3,8,9,10,12,13,15,16,17,19,20,21)
+replace subregionBID=5 if inlist(zona, 5,14)
+replace subregionBID=6 if zona==18
+
+label define subregionBID 1"ALC" 2"SOUTH" 3"AND" 4"CEN" 5"BRA" 6"MEX", modify 
+label value subregionBID subregionBID
+tab subregionBID
+
+
+
+********************Generar variables Base
+gen Importaciones=val if parameter==11
+gen Exportaciones=val if parameter==9
+gen NetTrade=val if parameter==13
+gen FoodDisp=val if parameter==1
+gen PopRiskhunger=val if parameter==6
+gen ALLsupply=val if parameter==14
+gen ShareExpor=val if parameter==8
+gen ShareImport=val if  parameter==10
+gen ShareAtRiskXagg=val if parameter==15
+gen ALLdemand=val if parameter==7
+
+*********************Generar variables por region 
+#delimit;
+keep impactparameter commodity ALLsupply region year val zona gcm parameter subregionBID 
+PopRiskhunger ALLsupply Importaciones ccrop;
+#delimit cr
+ 
+save FoodNew2.dta,clear 
+
+*****revision
+
+save "Tabla.dta", replace
+
+*****importaciones
+egen importall= mean(Importaciones), by (region year gcm commodity)
+egen importallGCM=mean (Importaciones) if gcm!=1, by(region year gcm commodity)
+egen importNocc=sum(Importaciones) if  gcm==1, by(region year gcm commodity)
+egen importCropsBid=mean (Importaciones) if inlist(ccrop,1,2,3,4,5) & gcm!=1, by(region year gcm commodity)
+
+*falta importaciones Nocc solo para Cultivos del BID
+egen importNoccBid= mean(Importaciones) if inlist(ccrop,1,2,3,4,5) & gcm==1, by(region year gcm commodity)
+
+*****ofertaAll
+egen Alloferta=mean(ALLsupply)if gcm!=1, by(region year gcm commodity)
+egen AllofertaNoCC=sum (ALLsupply)if gcm==1, by(region year gcm commodity)
+
+***********************************************************************************
+*****Base datos. 
+use FoodNew2.dta, clear
+
+****Para mantener una Base datos de importaciones
+// keep impactparameter commodity region year val zona gcm parameter subregionBID Importaciones importall importallGCM importNocc importCropsBid importNoccBid
+
+*** para crear especies de subdataset ImportALL
+collapse (mean) importall, by(commodity year region )
+save Onlyimportall.dta, clear
+
+*** para crear especies de subdataset ImportALL
+
+collapse (mean) importallGCM, by(commodity year region )
+save OnlyimportAllGCM, clear
+
+*** para crear especies de subdataset ImportALL
+collapse (sum) importNocc, by(commodity year region )
+save OnlyImporNocc, clear
+
+*** para crear especies de subdataset ImportALL
+collapse (mean) importCropsBid, by(commodity year region )
+save OnlyimportCropsBid, clear
+
+
+
+**************** Supply
+collapse (mean) Alloferta, by(commodity year region )
+
+egen Alloferta=mean(ALLsupply)if gcm!=1, by(region year gcm commodity)
+egen AllofertaNoCC=sum (ALLsupply)if gcm==1, by(region year gcm commodity)
+
+
+
+ 
+ 
+ /*
+****** Creando loops para obtener valores de importaciones
+forvalue i=2/10 {
+forvalue y=2005/2050{
+sum   importallGCM importNocc importCropsBid if gcm==`i' & 
+}
+}
+end
+
+
+forvalue y=2005/2050{
+sum  importallGCM  importCropsBid if year==`y' & gcm==2
+}
+end 
+
+sort gcm
+forvalue y=2005/2050{
+by gcm: summarize importallGCM   if year==`y' 
+}
+end
+
+*/
+
+*****************************************
+*****************************************
+*****************************************
+*****************************************
+cd "C:\Users\CEGONZALEZ\Desktop\BID\BID\newBID\ImpactResults" 
+use OnlyimportCropsBid.dta, clear
+
+#delimit;
+twoway (scatter hunger depend if region!="Jamaica" & region!="Other Caribbean", mcolor(blue) msymbol(square hollow)),
+ ytitle("{it: % Under nourised}" " " )  
+ xtitle("{it: Depend Importa}" )
+ legend(off)
+ ylabel(#10, angle(horizontal) labsize(medium))
+ xlabel(#10, angle(horizontal) labsize(medium))
+ scheme(s1mono);
+ #delimit cr
+
+ 
+# delimit 
+twoway (scatter hunger depend if region=="Colombia" , mcolor(red))
+(scatter hunger depend if region=="Argentina",  mcolor(blue))
+( scatter hunger depend if region=="Venezuela" , mcolor(green))
+( scatter hunger depend if region=="Bolivia" , mcolor(lime))
+( scatter hunger depend if region=="Uruguay" , mcolor(orange))
+( scatter hunger depend if region=="Ecuador" , mcolor(black))
+(scatter hunger depend if region=="Chile" , mcolor(gs10))
+(scatter hunger depend if region=="Peru" , mcolor(purple))
+(scatter hunger depend if region=="Mexico" , mcolor(gs7))
+(scatter hunger depend if region=="Brazil" , mcolor(emerald))
+(scatter hunger depend if region=="Haiti" , mcolor(edkblue))
+(scatter hunger depend if region=="Panama" , mcolor(erose ))
+(scatter hunger depend if region=="Nicaragua" , mcolor(sandb ))
+(scatter hunger depend if region=="Paraguay" , mcolor(ltkhaki))
+(scatter hunger depend if region=="Honduras" , mcolor(midgreen))
+(scatter hunger depend if region=="Guatemala" , mcolor(sienna))
+(scatter hunger depend if region=="El Salvador" , mcolor(maroon))
+(scatter hunger depend if region=="Cuba" , mcolor(lavender))
+(scatter hunger depend if region=="Costa Rica" , mcolor(gray))
+(scatter hunger depend if region=="Belize" , mcolor(cyan))
+(scatter hunger depend if region=="Dominican Republic" , mcolor(cranberry)),
+legend(order( 1 "Colombia" 2 "Argentina" 3 "Venezuela" 4 "Bolivia"
+5 "Uruguay" 6 "Ecuador" 7 "Chile" 8 "Peru" 9 "Mexico" 10 "Brazil"
+11 "Haiti" 12 "Panama" 13 "Nicaragua" 14 "Paraguay" 15 "Honduras"
+16 "Guatemala" 17 "El Salvador" 18 "Cuba" 19 "Costa Rica" 20 "Belize"
+21 "Dominican Republic"))
+	ytitle("ShareRiskHunger")
+	xtitle("Import Dependency")
+	ylabel(#10, angle(45) labsize(small)) 		
+	xlabel(#10, angle(45) labsize(small))
+	legend(on)
+	scheme(s1mono) xsize(6.5) ysize(7);
+#delimit cr
+graph save allcountriesDepende.gph, replace
+graph export allcountriesDepende.png, width(4000) replace 
+
+
+***********************************************************************
+******Paises ganadores
+# delimit 
+twoway (scatter hunger depend if region=="Colombia" , mcolor(red))
+( scatter hunger depend if region=="Venezuela" , mcolor(green))
+( scatter hunger depend if region=="Bolivia" , mcolor(lime))
+( scatter hunger depend if region=="Ecuador" , mcolor(black))
+(scatter hunger depend if region=="Panama" , mcolor(erose ))
+(scatter hunger depend if region=="Paraguay" , mcolor(blue))
+(scatter hunger depend if region=="Honduras" , mcolor(midgreen))
+(scatter hunger depend if region=="Guatemala" , mcolor(sienna))
+(scatter hunger depend if region=="Costa Rica" , mcolor(gray))
+(scatter hunger depend if region=="Belize" , mcolor(cyan))
+(scatter hunger depend if region=="Dominican Republic" , mcolor(cranberry)),
+legend(order( 1 "Colombia" 2 "Venezuela" 3 "Bolivia"
+4 "Ecuador"  5 "Panama" 6 "Paraguay" 7 "Honduras" 
+8 "Guatemala"  9 "Costa Rica" 10 "Belize" 11 "Dominican Republic"))
+	ytitle("ShareRiskHunger")
+	xtitle("Import Dependency")
+	ylabel(#10, angle(45) labsize(small)) 		
+	xlabel(#10, angle(45) labsize(small))
+	legend(on)
+	scheme(s1mono) xsize(6.5) ysize(7);
+#delimit cr
+graph save GanaDepende.gph, replace
+graph export GanaDepende.png, width(4000) replace 
+
+
+***********************************************************************
+******Paises no ganadores
+
+# delimit 
+twoway (scatter hunger depend if region=="Argentina",  mcolor(blue))
+( scatter hunger depend if region=="Uruguay" , mcolor(orange))
+(scatter hunger depend if region=="Chile" , mcolor(gs10))
+(scatter hunger depend if region=="Peru" , mcolor(purple))
+(scatter hunger depend if region=="Mexico" , mcolor(gs7))
+(scatter hunger depend if region=="Brazil" , mcolor(emerald))
+(scatter hunger depend if region=="Haiti" , mcolor(edkblue))
+(scatter hunger depend if region=="Nicaragua" , mcolor(sandb ))
+(scatter hunger depend if region=="El Salvador" , mcolor(maroon))
+(scatter hunger depend if region=="Cuba" , mcolor(lavender))
+(scatter hunger depend if region=="Costa Rica" , mcolor(gray)),
+legend(order( 1 "Argentina" 2 "Uruguay"  3 "Chile" 4 "Peru" 5 "Mexico" 
+6 "Brazil" 7 "Haiti" 8 "Nicaragua" 9 "El Salvador" 10 "Cuba" 11 "Costa Rica" ))
+	ytitle("ShareRiskHunger")
+	xtitle("Import Dependency")
+	ylabel(#10, angle(45) labsize(small)) 		
+	xlabel(#10, angle(45) labsize(small))
+	legend(on)
+	scheme(s1mono) xsize(6.5) ysize(7);
+#delimit cr
+graph save BAdcountriesDepende.gph, replace
+graph export BAdcountriesDepende.png, width(4000) replace 
+
+
+******************************************************************************
+******************************************************************************
+******************************************************************************
+*******************************working in ImportDependey.dta
+***data
+use ImportDependency.dta, clear
+
+***declarar regiones y subregiones
+gen zona=.
+replace zona=1 if region=="Argentina"
+replace zona=2 if region=="Belize"
+replace zona=3 if region=="Bolivia"
+replace zona=4 if region=="Brazil"
+replace zona=5 if region=="Chile"
+replace zona=6 if region=="Colombia"
+replace zona=7 if region=="Costa Rica"
+replace zona=8 if region=="Cuba"
+replace zona=9 if region=="Dominican Republic"
+replace zona=10 if region=="Ecuador"
+replace zona=11 if region=="El Salvador"
+replace zona=12 if region=="Guatemala"
+replace zona=13 if region=="Guyanas"
+replace zona=14 if region=="Haiti"
+replace zona=15 if region=="Honduras"
+replace zona=16 if region=="Jamaica"
+replace zona=17 if region=="Mexico"
+replace zona=18 if region=="Nicaragua"
+replace zona=19 if region=="Other Caribbean"
+replace zona=20 if region=="Panama"
+replace zona=21 if region=="Paraguay"
+replace zona=22 if region=="Peru"
+replace zona=23 if region=="Uruguay"
+replace zona=24 if region=="Venezuela"
+
+#delimit;
+label define zona 1"Argentina" 2"Belize" 3"Bolivia" 4"Brazil"
+	5"Chile" 6"Colombia" 7"Costa Rica" 8"Cuba" 9"Dominican Republic"
+	10"Ecuador" 11"El Salvador" 12"Guatemala" 13"Guyanas" 14"Haiti"
+	15"Honduras" 16"Jamaica" 17"Mexico" 18"Nicaragua" 19"Other Caribbean"
+	20"Panama" 21"Paraguay" 22"Peru" 23"Uruguay" 24"Venezuela", modify; 
+#delimit cr
+label value zona zona
+tab zona 
+
+gen subregionBID=.
+replace subregionBID=1 if inlist(zona,1, 5, 21, 23)
+replace subregionBID=2 if inlist(zona,3, 6, 10, 22, 24)
+replace subregionBID=3 if inlist(zona,2,7,8,9,11,12,14,15,16,18,19,20)
+replace subregionBID=4 if inlist(zona, 4,13)
+replace subregionBID=5 if zona==17
+
+label define subregionBID 1"SOUTH" 2"AND" 3"CEN" 4"BRA" 5"MEX", modify 
+label value subregionBID subregionBID
+tab subregionBID
+
+
+*******
+
+forvalue i= 1/5  {
+reg hunger depend if zona==`i'
+}
+end
+
+
+
+
+forvalue i=6/10 {
+reg hunger depend if zona==`i'
+}
+end
+
+forvalue i=11/15 {
+reg hunger depend if zona==`i'
+}
+end
+
+
+forvalue i=17/18 {
+reg hunger depend if zona==`i'
+}
+end
+
+forvalue i=20/24 {
+reg hunger depend if zona==`i'
+}
+end
+rename pt significance 
+
+************* grafica 1
+
+use CoefReggreImportDependecyHunger.dta, clear
+
+#delimit;
+graph hbar stderr coef, over(zona, sort(1) label(labsize(vsmall) angle(45)))
+over(significance, axis(off) gap(*.1)) bargap(-20) outergap(100) 
+legend(label (1 "Std. Err." ) label(2 "Coef"))
+bar(1, bcolor(blue)) bar(2, bcolor(red))
+ylabel(-14(2)7, angle(horizontal) labsize(small)) 
+yline(0)  xsize(6.5) ysize(7)
+scheme(s1mono)	;
+#delimit cr
+graph save hRegre.gph, replace
+graph export hRegre.png, width(4000) replace 
+
+***********************************************
+***********************************************
+***********************************************
+***********************************************
+** Para Filtrar
+
+
+year==2005 & region =="LAC-Belize"& importCropsBid !=.& commodity =="cmaiz"
+
+*estudiar la aplicacion 
+collapse (sum) importCropsBid if parameter==11 , by( year region )
+
+***********************************************
+***********************************************
+***********************************************
+
+***data
+use importdependencyBID.dta .dta, clear
+
+***declarar regiones y subregiones
+gen zona=.
+replace zona=1 if region=="Argentina"
+replace zona=2 if region=="Belize"
+replace zona=3 if region=="Bolivia"
+replace zona=4 if region=="Brazil"
+replace zona=5 if region=="Chile"
+replace zona=6 if region=="Colombia"
+replace zona=7 if region=="Costa Rica"
+replace zona=8 if region=="Cuba"
+replace zona=9 if region=="Dominican Republic"
+replace zona=10 if region=="Ecuador"
+replace zona=11 if region=="El Salvador"
+replace zona=12 if region=="Guatemala"
+replace zona=13 if region=="Guyanas"
+replace zona=14 if region=="Haiti"
+replace zona=15 if region=="Honduras"
+replace zona=16 if region=="Jamaica"
+replace zona=17 if region=="Mexico"
+replace zona=18 if region=="Nicaragua"
+replace zona=19 if region=="Other Caribbean"
+replace zona=20 if region=="Panama"
+replace zona=21 if region=="Paraguay"
+replace zona=22 if region=="Peru"
+replace zona=23 if region=="Uruguay"
+replace zona=24 if region=="Venezuela"
+
+#delimit;
+label define zona 1"Argentina" 2"Belize" 3"Bolivia" 4"Brazil"
+	5"Chile" 6"Colombia" 7"Costa Rica" 8"Cuba" 9"Dominican Republic"
+	10"Ecuador" 11"El Salvador" 12"Guatemala" 13"Guyanas" 14"Haiti"
+	15"Honduras" 16"Jamaica" 17"Mexico" 18"Nicaragua" 19"Other Caribbean"
+	20"Panama" 21"Paraguay" 22"Peru" 23"Uruguay" 24"Venezuela", modify; 
+#delimit cr
+label value zona zona
+tab zona 
+
+gen subregionBID=.
+replace subregionBID=1 if inlist(zona,1, 5, 21, 23)
+replace subregionBID=2 if inlist(zona,3, 6, 10, 22, 24)
+replace subregionBID=3 if inlist(zona,2,7,8,9,11,12,14,15,16,18,19,20)
+replace subregionBID=4 if inlist(zona, 4,13)
+replace subregionBID=5 if zona==17
+
+label define subregionBID 1"SOUTH" 2"AND" 3"CEN" 4"BRA" 5"MEX", modify 
+label value subregionBID subregionBID
+tab subregionBID
+
+
+*******
+
+forvalue i= 2/5  {
+reg hunger depend if zona==`i'
+}
+end
+
+
+
+
+forvalue i=6/10 {
+reg hunger depend if zona==`i'
+}
+end
+
+forvalue i=11/15 {
+reg hunger depend if zona==`i'
+}
+end
+
+
+forvalue i=17/18 {
+reg hunger depend if zona==`i'
+}
+end
+
+forvalue i=20/24 {
+reg hunger depend if zona==`i'
+}
+end
+rename pt significance 
+
+************* grafica 1
+
+use CoefReggreImportDependecyHunger.dta, clear
+#delimit;
+graph hbar stderr coef, over(zona, sort(1) label(labsize(small) angle(45)))
+over(significance, axis(off) gap(*.1)) bargap(-20) outergap(100) 
+legend(label (1 "Std. Err." ) label(2 "Coef"))
+bar(1, bcolor(blue)) bar(2, bcolor(red))
+ylabel(-14(2)10, angle(horizontal) labsize(small)) 
+yline(0)  xsize(6.5) ysize(7)
+scheme(s1mono) note("{it:All crops}")	;
+#delimit cr
+graph save hAllRegre.gph, replace
+graph export hAllRegre.png, width(4000) replace 
+
+
+
+
+****************************************
+****************************************
+****************************************
+
+
+
+
+use CoefReggreImportDependecyHungerBID.dta, clear
+gen Pvalue=1 if inlist(significance, "5%", "10%")
+
+#delimit;
+graph hbar stderr coef, over(zona, sort(1) label(labsize(small) angle(45)))
+over(Pvalue, axis(off) gap(*.1)) bargap(-20) outergap(100) 
+legend(label (1 "Std. Err." ) label(2 "Coef"))
+bar(1, bcolor(blue)) bar(2, bcolor(red))
+ylabel(-14(2)12, angle(horizontal) labsize(small)) 
+yline(0)  xsize(6.5) ysize(7)
+scheme(s1mono)	 note("{it:BID crops}");
+#delimit cr
+graph save hBIDRegre.gph, replace
+graph export hBIDRegre.png, width(4000) replace 
+
+
+
+gr combine hAllRegre.gph hBIDRegre.gph, note("{it:*Significance, 5%-10%}")
+graph save allRegre.gph, replace
+graph export allRegre.png, width(4000) replace 
+
+********************************************************************************
+********************************************************************************
+********************************************************************************
+
+***foodDIsp
+
+egen DispFood= mean(FoodDisp) if gcm!=1, by (region year gcm commodity)
+egen DispFoodNoCC= mean(FoodDisp) if gcm==1, by (region year gcm commodity)
+
+*** filtar 
+subregionBID !=. & parameter==1 & gcm!=1  &  zona!=1
+
+reshape long f, i(region) j(j)
+
+use FoodAvaAllGCM.dta, clear
+
+rename f FoodAva
+
+
+**************************************************Experiment
+
+#delimit;
+graph bar FoodAva , over(zona, sort(1) label(labsize(vsmall) angle(45)))
+bar(1, bcolor(blue)) bar(2, bcolor(red))
+ytitle("{it:Mean food availability  2005-2050}")
+ylabel(#10, angle(horizontal) labsize(small)) 
+scheme(s1mono)	;
+#delimit cr
+graph save AvaFood2.gph, replace
+graph export AvaFood2.png, width(4000) replace 
+
+
+#delimit;
+graph bar changefooddisp , over(zona, label(labsize(vsmall) angle(45))) 
+bar(1, bcolor(blue)) bar(2, bcolor(red))
+ytitle("{it:% Change food availability 2005-2050}")
+ylabel(#10, angle(horizontal) labsize(small)) 
+scheme(s1mono)	;
+#delimit cr
+graph save changeAvaFood2.gph, replace
+graph export changeAvaFood2.png, width(4000) replace 
+
+
+gr combine AvaFood2.gph changeAvaFood2.gph, note("{it: Food availability per capita (kg per person)}") scheme(s1mono)
+graph save comida2.gph, replace
+graph export comida2.png, width(4000) replace 
+****************************************************************
+
+* orden descendiente 
+sort 
+
+
+********** prueba
+sort FoodAva
+
+#delimit;
+graph bar changefooddisp , over(zona, sort(z) label(labsize(vsmall) angle(45)))
+ytitle("{it:% Change food availability 2005-2050}")
+ylabel(#10, angle(horizontal) labsize(small)) 
+scheme(s1mono)	;
+#delimit cr
+graph save changeAvaFood2.gph, replace
+graph export changeAvaFood2.png, width(4000) replace 
+
+
+
+
+**********
+#delimit;
+graph bar FoodAva , over(zona, sort(1) label(labsize(vsmall) angle(45)))
+bar(1, bcolor(blue)) bar(2, bcolor(red))
+ytitle("{it:Mean food availability  2005-2050}")
+ylabel(#10, angle(horizontal) labsize(small)) 
+scheme(s1mono)	;
+#delimit cr
+graph save AvaFood2.gph, replace
+graph export AvaFood2.png, width(4000) replace 
+
+
+gr combine AvaFood2.gph changeAvaFood2.gph, note("{it: Food availability per capita (kg per person)}") scheme(s1mono)
+graph save comida2.gph, replace
+graph export comida2.png, width(4000) replace 
+
+
+*********************
+
+reshape wide FoodAva, i(region) j(j)
+reshape long FoodAva, i(region) j(j)
+
+********************** PerCalK
+
+****organizar la variable region
+
+*** EAP, EUR, FSU, LAC, MEN, NAM, SAS, WLD
+gen zona=.
+replace zona=1 if region=="LAC"
+replace zona=2 if region=="LAC-Argentina"
+replace zona=3 if region=="LAC-Belize"
+replace zona=4 if region=="LAC-Bolivia"
+replace zona=5 if region=="LAC-Brazil"
+replace zona=6 if region=="LAC-Chile"
+replace zona=7 if region=="LAC-Colombia"
+replace zona=8 if region=="LAC-Costa Rica"
+replace zona=9 if region=="LAC-Cuba"
+replace zona=10 if region=="LAC-Dominican Republic"
+replace zona=11 if region=="LAC-Ecuador"
+replace zona=12 if region=="LAC-El Salvador"
+replace zona=13 if region=="LAC-Guatemala"
+replace zona=14 if region=="LAC-Guyanas"
+replace zona=15 if region=="LAC-Haiti"
+replace zona=16 if region=="LAC-Honduras"
+replace zona=17 if region=="LAC-Jamaica"
+replace zona=18 if region=="LAC-Mexico"
+replace zona=19 if region=="LAC-Nicaragua"
+replace zona=20 if region=="LAC-Other Caribbean"
+replace zona=21 if region=="LAC-Panama"
+replace zona=22 if region=="LAC-Paraguay"
+replace zona=23 if region=="LAC-Peru"
+replace zona=24 if region=="LAC-Uruguay"
+replace zona=25 if region=="LAC-Venezuela"
+
+#delimit;
+label define zona 1 "LAC" 2"LAC-Argentina" 3"LAC-Belize" 4"LAC-Bolivia" 5"LAC-Brazil"
+	6"LAC-Chile" 7"LAC-Colombia" 8"LAC-Costa Rica" 9"LAC-Cuba" 10"LAC-Dominican Republic"
+	11"LAC-Ecuador" 12"LAC-El Salvador" 13"LAC-Guatemala" 14"LAC-Guyanas" 15"LAC-Haiti"
+	16"LAC-Honduras" 17"LAC-Jamaica" 18"LAC-Mexico" 19"LAC-Nicaragua" 20"LAC-Other Caribbean"
+	21"LAC-Panama" 22"LAC-Paraguay" 23"LAC-Peru" 24"LAC-Uruguay" 25"LAC-Venezuela", modify; 
+#delimit cr
+label value zona zona
+tab zona 
+
+*************************solo ALC
+#delimit;
+use calorias.dta, replace
+#delimit;
+keep  if inlist(region,"LAC", "LAC-Argentina", "LAC-Belize", "LAC-Bolivia", "LAC-Brazil",
+"LAC-Chile" ,"LAC-Colombia", "LAC-Costa Rica" ,"LAC-Cuba");
+#delimit cr;
+save c1.dta, replace
+
+use calorias.dta, replace
+#delimit;
+keep  if inlist(region,"LAC-Dominican Republic","LAC-Ecuador" ,"LAC-El Salvador" ,
+"LAC-Guatemala" ,"LAC-Guyanas" ,"LAC-Haiti","LAC-Honduras","LAC-Jamaica" ,"LAC-Mexico");
+#delimit cr;
+save c2.dta, replace
+
+use calorias.dta, replace
+#delimit;
+keep  if inlist(region,"LAC-Nicaragua", "LAC-Other Caribbean" ,"LAC-Panama",
+"LAC-Paraguay", "LAC-Peru" ,"LAC-Uruguay" ,"LAC-Venezuela");
+#delimit cr;
+save c3.dta, replace
+
+***MERGE BASE DE DATOS.
+use c1.dta, replace
+append using c2.dta c3.dta
+save CaPerK.dta, replace 
+
+
+***reshape
+
+reshape wide percalkagg, i(region zona scenario) j(year )
+reshape long percalkagg, i(region zona scenario) j(year )
+
+egen caloria= mean(percalkagg), by (region year scenario )
+***** tabla resumida
+
+reshape long c, i(region) j(year )
+
+#delimit;
+graph bar c , over(region, sort(d) label(labsize(vsmall) angle(45)))
+bar(1, bcolor(blue)) bar(2, bcolor(red))
+yline(2100, lcolor(red)) 
+ytitle("{it:Mean Per capita calories available 2005-2050}" " ")
+ylabel(#10, angle(horizontal) labsize(small)) 
+scheme(s1mono) note("{stMono:Red line (2,100 Kcal of energy) }" "{stMono:World Food Programme}")  ;
+#delimit cr
+graph save AvaCa.gph, replace
+graph export AvaCa.png, width(4000) replace 
+
+///("World Food Programme")
+
+#delimit;
+graph bar change , over(region, sort(d)label(labsize(vsmall) angle(45))) 
+bar(1, bcolor(blue)) bar(2, bcolor(red))
+ytitle("{it:% Change per capita calories available 2005-2050}")
+ylabel(#10, angle(horizontal) labsize(small)) 
+scheme(s1mono)	;
+#delimit cr
+graph save changeACa.gph, replace
+graph export changeACa.png, width(4000) replace 
+
+#delimit:
+gr combine  AvaCa.gph changeACa.gph  , 
+note("{stMono: Per capita calories available (KCal per person per day)}") 
+scheme(s1mono);
+#delimit cr
+graph save calorias2.gph, replace
+graph export calorias2.png, width(4000) replace 
+
+
